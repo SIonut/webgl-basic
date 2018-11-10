@@ -6,13 +6,12 @@ body {
     width: 100vw;
     height: 100vh;
     display: grid;
-    place-items: center;
+    justify-items: center;
+    align-items: center;
     background: black;
 }
 
 #glCanvas {
-    width: 800px;
-    height: 600px;
     border: 1px solid black;
     background: white;
     box-shadow: 0 0 350px 5px white;

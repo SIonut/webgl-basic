@@ -1,5 +1,8 @@
+
 function main() {
     const canvas = document.querySelector('#glCanvas')
+    canvas.width = GAME.state.displayWidth
+    canvas.height = GAME.state.displayHeight
     const gl = canvas.getContext('webgl')
     if (gl === null) {
         alert('Unable to initialize WebGL. Your browser or machine might not support it.')
@@ -7,7 +10,7 @@ function main() {
     }
 
     const shaderProgram = initShaderProgram(gl, generateDefaultVertexShaderText(), generateDefaultFragmentShaderText())
-    
+
     const programInfo = {
         program: shaderProgram,
         attribLocations: {
@@ -20,37 +23,42 @@ function main() {
         }
     }
 
-    drawScene(gl, programInfo, initBuffers(gl))
+    let then = 0
+    const buffers = initBuffers(gl)
+    const render = (now) => {
+        now *= .001
+        const deltaTime = now - then
+        then = now
+
+        drawScene(gl, programInfo, buffers, deltaTime)
+
+        requestAnimationFrame(render)
+    }
+    requestAnimationFrame(render)
 }
 
 function initBuffers(gl) {
     const positionBuffer = gl.createBuffer()
     gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer)
-    const positions = [
-        1., 1.,
-        -1., 1.,
-        1., -1.,
-        -1., -1.,
-    ]
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW)
-
-    const colors = [
-        1., 1., 1., 1.,
-        1., 0., 0., 1.,
-        0., 1., 0., 1.,
-        0., 0., 1., 1.,
-    ]
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(GAME.state.shape.positions), gl.STATIC_DRAW)
+    
+    const colors = GAME.state.shape.colors.reduce((acc, it) => acc.concat(it, it, it, it), [])
     const colorBuffer = gl.createBuffer()
     gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer)
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW)
 
+    const indexBuffer = gl.createBuffer()
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer)
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(GAME.state.shape.indices), gl.STATIC_DRAW)
+
     return {
         position: positionBuffer,
         color: colorBuffer,
+        indices: indexBuffer,
     }
 }
 
-function drawScene(gl, programInfo, buffers) {
+function drawScene(gl, programInfo, buffers, deltaTime) {
     gl.clearColor(.0, .0, .0, 1.)
     gl.clearDepth(1.)
     gl.enable(gl.DEPTH_TEST)
@@ -65,10 +73,12 @@ function drawScene(gl, programInfo, buffers) {
     const projectionMatrix = mat4.create()
     mat4.perspective(projectionMatrix, fieldOfView, aspect, zNear, zFar)
     const modelViewMatrix = mat4.create()
+    mat4.rotate(modelViewMatrix, modelViewMatrix, GAME.state.shape.rotation, [0, 0, 1])
     mat4.translate(modelViewMatrix, modelViewMatrix, [-.0, .0, -6.])
+    mat4.rotate(modelViewMatrix, modelViewMatrix, GAME.state.shape.rotation * .5, [0, 1, 0])
 
     {
-        const numPositionComponents = 2
+        const numPositionComponents = 3
         const type = gl.FLOAT
         const normalize = false
         const stride = 0
@@ -97,6 +107,9 @@ function drawScene(gl, programInfo, buffers) {
             offset,
         )
         gl.enableVertexAttribArray(programInfo.attribLocations.vertexColor)
+
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffers.indices)
+
     }
 
     gl.useProgram(programInfo.program)
@@ -106,7 +119,8 @@ function drawScene(gl, programInfo, buffers) {
 
     {
         const offset = 0
-        const vertexCount = 4
-        gl.drawArrays(gl.TRIANGLE_STRIP, offset, vertexCount)
+        gl.drawElements(gl.TRIANGLES, GAME.state.shape.indices.length, gl.UNSIGNED_SHORT, offset)
     }
+
+    GAME.state.shape.rotation += deltaTime
 }
