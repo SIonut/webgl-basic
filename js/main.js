@@ -5,8 +5,6 @@ function main() {
         alert('Unable to initialize WebGL. Your browser or machine might not support it.')
         return
     }
-    gl.clearColor(.0, .0, .0, 1.)
-    gl.clear(gl.COLOR_BUFFER_BIT)
 
     const shaderProgram = initShaderProgram(gl, generateDefaultVertexShaderText(), generateDefaultFragmentShaderText())
     
@@ -16,12 +14,12 @@ function main() {
             vertexPosition: gl.getAttribLocation(shaderProgram, 'aVertexPosition'),
         },
         uniformLocations: {
-            projectionMatrix: gl.getUniformLocation(shaderProgram, 'uPojectionMatrix'),
+            projectionMatrix: gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
             modelViewMatrix: gl.getUniformLocation(shaderProgram, 'uModelViewMatrix'),
         }
     }
 
-    drawScene(gl, programInfo, unitBuffers(gl))
+    drawScene(gl, programInfo, initBuffers(gl))
 }
 
 function initBuffers(gl) {
@@ -29,10 +27,10 @@ function initBuffers(gl) {
     gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer)
 
     const positions = [
-        -1., 1.,
         1., 1.,
-        -1., -1.,
+        -1., 1.,
         1., -1.,
+        -1., -1.,
     ]
 
     gl.bufferData(
@@ -59,15 +57,15 @@ function drawScene(gl, programInfo, buffers) {
     const zNear = .1
     const zFar = 100.
     const projectionMatrix = mat4.create()
-
-    mat4.translate(modelViewMatrix, modelViewMatrix, [.0, .0, -6.])
+    mat4.perspective(projectionMatrix, fieldOfView, aspect, zNear, zFar)
+    const modelViewMatrix = mat4.create()
+    mat4.translate(modelViewMatrix, modelViewMatrix, [-.0, .0, -6.])
 
     {
         const numComponents = 2
         const type = gl.FLOAT
         const normalize = false
         const stride = 0
-
         const offset = 0
         gl.bindBuffer(gl.ARRAY_BUFFER, buffers.position)
         gl.vertexAttribPointer(
@@ -78,14 +76,13 @@ function drawScene(gl, programInfo, buffers) {
             stride,
             offset,
         )
-
         gl.enableVertexAttribArray(programInfo.attribLocations.vertexPosition)
     }
 
     gl.useProgram(programInfo.program)
 
-    gl.uniformMatrix4v(programInfo.uniformLocations.projectionMatrix, false, projectionMatrix)
-    gl.uniformMatrix4v(programInfo.uniformLocations.modelViewMatrix, false, modelViewMatrix)
+    gl.uniformMatrix4fv(programInfo.uniformLocations.projectionMatrix, false, projectionMatrix)
+    gl.uniformMatrix4fv(programInfo.uniformLocations.modelViewMatrix, false, modelViewMatrix)
 
     {
         const offset = 0
